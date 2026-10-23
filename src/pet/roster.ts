@@ -39,11 +39,17 @@ export const PETS: Record<string, PetDef> = {
     anims: ALL_ANIMS,
     settings: { walkSpeed: 60, sitChance: 0.15 },
   },
+  "nesrin":{
+    id: "nesrin",
+    frameSize: 32,
+    anims: ALL_ANIMS,
+    settings: { walkSpeed: 60, sitChance: 0.15}
+  }
 };
 
 /** Era name (exactly as in the project front matter) -> pet id. */
 export const ERA_PETS: Record<string, string> = {
-  "The Age of Man": "placeholder-b",
+  "The Age of Man": "nesrin",
 };
 
 export function choosePet(
