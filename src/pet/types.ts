@@ -1,8 +1,11 @@
 /** An animation strip a pet can have: one PNG per name in public/pets/<pet-id>/. */
-export type AnimName = "idle" | "walk" | "sit" | "sleep" | "notice" | "react";
+export type AnimName = "idle" | "walk" | "sit" | "sleep" | "notice" | "react" | "blink";
 
-/** What the pet is doing: an animation name, or one half of a pet swap. */
-export type PetMode = AnimName | "enter" | "exit";
+/**
+ * What the pet is doing: an animation name, one half of a pet swap, or "wake"
+ * (sitting up for a moment after a nap). Blinking happens on top of idle.
+ */
+export type PetMode = Exclude<AnimName, "blink"> | "enter" | "exit" | "wake";
 
 /** A horizontal stretch the pet can stand on, as the range its centre may occupy (px). */
 export interface Surface {
@@ -26,6 +29,8 @@ export interface PetInput {
   surface: Surface;
   /** Reduced motion or a very narrow screen: never walk. */
   stationary: boolean;
+  /** How long this pet's blink strip plays, ms. 0 = the pet has no blink strip. */
+  blinkDurationMs: number;
 }
 
 export interface PetState {
@@ -44,6 +49,10 @@ export interface PetState {
   nearMs: number;
   /** Clicks are ignored until this reaches 0, ms. */
   cooldownMs: number;
+  /** Time until the next blink while idle, ms. */
+  nextBlinkMs: number;
+  /** Time left in the current blink, ms. > 0 while blinking. */
+  blinkLeftMs: number;
 }
 
 export interface BehaviorSettings {
@@ -53,6 +62,10 @@ export interface BehaviorSettings {
   idleMs: readonly [number, number];
   sitMs: readonly [number, number];
   sleepMs: readonly [number, number];
+  /** How long the pet stays sitting after a nap ends on its own. */
+  wakeMs: readonly [number, number];
+  /** Gap between blinks while idle (only for pets with a blink strip). */
+  blinkMs: readonly [number, number];
   /** Chance (0..1) that idle leads to sit instead of walk. */
   sitChance: number;
   /** Chance (0..1) that sit leads to sleep instead of idle. */

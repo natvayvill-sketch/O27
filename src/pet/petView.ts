@@ -10,6 +10,8 @@ interface LoadedPet {
   frames: Partial<Record<AnimName, number>>;
   available: AnimName[];
   cfg: BehaviorSettings;
+  /** How long one play of the blink strip takes, ms. 0 = no blink strip. */
+  blinkDurationMs: number;
 }
 
 /** Below this viewport width the pet stays put in the corner. */
@@ -41,7 +43,14 @@ async function loadPet(def: PetDef): Promise<LoadedPet | null> {
   const frames: Partial<Record<AnimName, number>> = {};
   for (const r of results) if (r) frames[r[0]] = r[1];
   if (!frames.idle || !frames.walk) return null;
-  return { def, frames, available: Object.keys(frames) as AnimName[], cfg: settingsFor(def) };
+  const blinkFps = def.fps?.blink ?? DEFAULT_FPS.blink;
+  return {
+    def,
+    frames,
+    available: Object.keys(frames) as AnimName[],
+    cfg: settingsFor(def),
+    blinkDurationMs: frames.blink ? (frames.blink / blinkFps) * 1000 : 0,
+  };
 }
 
 /**
@@ -92,10 +101,14 @@ export function startPet(): void {
 
   function render(size: number): void {
     if (!pet || !state) return;
-    const anim = resolveAnim(pet.available, animFor(state.mode));
+    const anim = resolveAnim(pet.available, animFor(state.mode, state.blinkLeftMs > 0));
     const count = pet.frames[anim] ?? 1;
     const fps = pet.def.fps?.[anim] ?? DEFAULT_FPS[anim];
-    const frame = frameAt(state.modeMs, fps, count, loops(state.mode));
+    // A blink plays once from its own start; everything else runs on time in the current mode.
+    const frame =
+      anim === "blink"
+        ? frameAt(pet.blinkDurationMs - state.blinkLeftMs, fps, count, false)
+        : frameAt(state.modeMs, fps, count, loops(state.mode));
     const url = spriteUrl(pet.def, anim);
     if (url !== shownUrl) {
       sprite!.style.backgroundImage = `url("${url}")`;
@@ -126,6 +139,7 @@ export function startPet(): void {
       clicked,
       surface,
       stationary,
+      blinkDurationMs: pet.blinkDurationMs,
     };
     clicked = false;
     const prevMode = state.mode;

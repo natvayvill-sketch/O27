@@ -13,6 +13,10 @@ describe("resolveAnim", () => {
     expect(resolveAnim(["idle", "walk"], "sleep")).toBe("idle");
   });
 
+  it("blink falls back to idle", () => {
+    expect(resolveAnim(["idle", "walk"], "blink")).toBe("idle");
+  });
+
   it("notice and react fall back to idle", () => {
     expect(resolveAnim(["idle", "walk"], "notice")).toBe("idle");
     expect(resolveAnim(["idle", "walk"], "react")).toBe("idle");
@@ -24,6 +28,17 @@ describe("animFor / loops", () => {
     expect(animFor("enter")).toBe("react");
     expect(animFor("exit")).toBe("react");
     expect(animFor("walk")).toBe("walk");
+  });
+
+  it("waking up uses the sit animation", () => {
+    expect(animFor("wake")).toBe("sit");
+    expect(loops("wake")).toBe(true);
+  });
+
+  it("shows the blink strip only while blinking during idle", () => {
+    expect(animFor("idle", true)).toBe("blink");
+    expect(animFor("idle", false)).toBe("idle");
+    expect(animFor("walk", true)).toBe("walk");
   });
 
   it("react, enter and exit play once; everything else loops", () => {

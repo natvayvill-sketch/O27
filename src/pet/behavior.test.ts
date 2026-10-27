@@ -8,6 +8,7 @@ const input = (over: Partial<PetInput> = {}): PetInput => ({
   clicked: false,
   surface,
   stationary: false,
+  blinkDurationMs: 0,
   ...over,
 });
 const at = (mode: PetMode, over: Partial<PetState> = {}): PetState => ({
@@ -128,9 +129,20 @@ describe("behavior: idle, walk, sit, sleep", () => {
     expect(s.mode).toBe("sleep");
   });
 
-  it("sleep -> idle when the nap ends on its own", () => {
-    const s = step(at("sleep", { timerMs: 0 }), input(), 16, hi);
+  it("sleep -> wake (still sitting) when the nap ends on its own", () => {
+    const s = step(at("sleep", { timerMs: 0 }), input(), 16, lo);
+    expect(s.mode).toBe("wake");
+    expect(s.timerMs).toBe(cfg.wakeMs[0]);
+  });
+
+  it("wake -> idle after a moment, without dozing off again", () => {
+    const s = step(at("wake", { timerMs: 0 }), input(), 16, lo);
     expect(s.mode).toBe("idle");
+  });
+
+  it("a waking pet still notices the cursor", () => {
+    const s = step(at("wake"), input({ cursor: near }), 16, lo);
+    expect(s.mode).toBe("notice");
   });
 });
 
@@ -204,5 +216,45 @@ describe("behavior: clicks", () => {
   it("a click wakes a sleeping pet", () => {
     const s = step(at("sleep", { timerMs: 20_000 }), input({ clicked: true }), 16, lo);
     expect(s.mode).toBe("react");
+  });
+});
+
+describe("behavior: blinking", () => {
+  const blinky = (over: Partial<PetInput> = {}) => input({ blinkDurationMs: 300, ...over });
+
+  it("schedules a blink when the pet becomes idle", () => {
+    const s = step(createPetState(200), blinky(), cfg.enterMs, lo);
+    expect(s.mode).toBe("idle");
+    expect(s.nextBlinkMs).toBe(cfg.blinkMs[0]);
+    expect(s.blinkLeftMs).toBe(0);
+  });
+
+  it("counts down to the next blink while idle", () => {
+    const s = step(at("idle", { nextBlinkMs: 1000 }), blinky(), 100, lo);
+    expect(s.nextBlinkMs).toBe(900);
+    expect(s.blinkLeftMs).toBe(0);
+  });
+
+  it("starts a blink when the countdown runs out", () => {
+    const s = step(at("idle", { nextBlinkMs: 10 }), blinky(), 16, lo);
+    expect(s.mode).toBe("idle");
+    expect(s.blinkLeftMs).toBe(300);
+  });
+
+  it("ends the blink after its length and schedules the next one", () => {
+    const s = step(at("idle", { blinkLeftMs: 10 }), blinky(), 16, hi);
+    expect(s.blinkLeftMs).toBe(0);
+    expect(s.nextBlinkMs).toBeCloseTo(cfg.blinkMs[0] + (cfg.blinkMs[1] - cfg.blinkMs[0]) * 0.99);
+  });
+
+  it("never blinks when the pet has no blink strip", () => {
+    const s = step(at("idle", { nextBlinkMs: 10 }), input(), 16, lo);
+    expect(s.blinkLeftMs).toBe(0);
+  });
+
+  it("stops blinking when the pet leaves idle", () => {
+    const s = step(at("walk", { x: 100, targetX: 400, blinkLeftMs: 200 }), blinky(), 16, lo);
+    expect(s.mode).toBe("walk");
+    expect(s.blinkLeftMs).toBe(0);
   });
 });

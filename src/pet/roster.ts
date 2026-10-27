@@ -24,6 +24,7 @@ export const DEFAULT_FPS: Record<AnimName, number> = {
   sleep: 2,
   notice: 4,
   react: 8,
+  blink: 8,
 };
 
 const ALL_ANIMS: readonly AnimName[] = ["idle", "walk", "sit", "sleep", "notice", "react"];
@@ -39,12 +40,19 @@ export const PETS: Record<string, PetDef> = {
     anims: ALL_ANIMS,
     settings: { walkSpeed: 60, sitChance: 0.15 },
   },
-  "nesrin":{
+  nesrin: {
     id: "nesrin",
-    frameSize: 32,
-    anims: ALL_ANIMS,
-    settings: { walkSpeed: 60, sitChance: 0.15}
-  }
+    frameSize: 20,
+    anims: ["idle", "walk", "sit", "sleep", "blink"],
+    fps: { walk: 4, idle: 2 },
+    settings: {
+      walkSpeed: 25,
+      idleMs: [4000, 10000],
+      sitChance: 0.6,
+      sleepChance: 0.7,
+      blinkMs: [5000, 12000],
+    },
+  },
 };
 
 /** Era name (exactly as in the project front matter) -> pet id. */

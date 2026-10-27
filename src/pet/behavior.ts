@@ -5,6 +5,8 @@ export const DEFAULT_SETTINGS: BehaviorSettings = {
   idleMs: [2000, 6000],
   sitMs: [5000, 12000],
   sleepMs: [20000, 45000],
+  wakeMs: [1500, 3000],
+  blinkMs: [3000, 8000],
   sitChance: 0.3,
   sleepChance: 0.4,
   noticeRadius: 120,
@@ -60,6 +62,8 @@ export function createPetState(x: number, cfg: BehaviorSettings = DEFAULT_SETTIN
     modeMs: 0,
     nearMs: 0,
     cooldownMs: 0,
+    nextBlinkMs: 0,
+    blinkLeftMs: 0,
   };
 }
 
@@ -70,6 +74,43 @@ export function requestSwap(s: PetState, cfg: BehaviorSettings = DEFAULT_SETTING
 
 /** Advance the pet by dtMs. Pure: all randomness comes from rng (0..1). */
 export function step(
+  prev: PetState,
+  input: PetInput,
+  dtMs: number,
+  rng: () => number,
+  cfg: BehaviorSettings = DEFAULT_SETTINGS,
+): PetState {
+  return blink(prev, move(prev, input, dtMs, rng, cfg), input, dtMs, rng, cfg);
+}
+
+/** Blinks are layered on top of idle: a random countdown, then one play of the blink strip. */
+function blink(
+  prev: PetState,
+  next: PetState,
+  input: PetInput,
+  dtMs: number,
+  rng: () => number,
+  cfg: BehaviorSettings,
+): PetState {
+  if (next.mode !== "idle" || input.blinkDurationMs <= 0) {
+    return { ...next, blinkLeftMs: 0, nextBlinkMs: 0 };
+  }
+  if (prev.mode !== "idle") {
+    return { ...next, blinkLeftMs: 0, nextBlinkMs: between(cfg.blinkMs, rng) };
+  }
+  if (next.blinkLeftMs > 0) {
+    const left = next.blinkLeftMs - dtMs;
+    return left > 0
+      ? { ...next, blinkLeftMs: left }
+      : { ...next, blinkLeftMs: 0, nextBlinkMs: between(cfg.blinkMs, rng) };
+  }
+  const wait = next.nextBlinkMs - dtMs;
+  return wait > 0
+    ? { ...next, nextBlinkMs: wait }
+    : { ...next, nextBlinkMs: 0, blinkLeftMs: input.blinkDurationMs };
+}
+
+function move(
   prev: PetState,
   input: PetInput,
   dtMs: number,
@@ -130,6 +171,9 @@ export function step(
       }
       return toIdle(s, rng, cfg);
     case "sleep":
+      // Waking up: sit for a moment before standing, so the pet doesn't pop upright.
+      return s.timerMs > 0 ? s : enterMode(s, "wake", between(cfg.wakeMs, rng));
+    case "wake":
       return s.timerMs > 0 ? s : toIdle(s, rng, cfg);
   }
 }

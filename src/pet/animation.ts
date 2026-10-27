@@ -11,6 +11,7 @@ const FALLBACKS: Record<AnimName, readonly AnimName[]> = {
   sleep: ["sit", "idle"],
   notice: ["idle"],
   react: ["idle"],
+  blink: ["idle"],
 };
 
 export function resolveAnim(available: readonly AnimName[], wanted: AnimName): AnimName {
@@ -20,8 +21,10 @@ export function resolveAnim(available: readonly AnimName[], wanted: AnimName): A
   return "idle";
 }
 
-export function animFor(mode: PetMode): AnimName {
-  return mode === "enter" || mode === "exit" ? "react" : mode;
+export function animFor(mode: PetMode, blinking = false): AnimName {
+  if (mode === "enter" || mode === "exit") return "react";
+  if (mode === "wake") return "sit";
+  return mode === "idle" && blinking ? "blink" : mode;
 }
 
 export function loops(mode: PetMode): boolean {
